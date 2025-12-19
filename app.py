@@ -232,7 +232,7 @@ def render_birth_death():
     st.title("👶💀 Birth rate & Death rate")
     BASE_DIR = Path(__file__).resolve().parent
     DATA_DIR = BASE_DIR / "data" / "demographics"
-    datasets = dataset_loader_ui("Birth rate & Death rate", DATA_DIR)
+    datasets = dataset_loader_ui("Birth rate & Death rate", DATA_DIR, row_filter_fn=filter_country_2023)
 
     st.divider()
     st.header("2) Graph Area (add your indicator charts here)")
