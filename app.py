@@ -1,213 +1,412 @@
-# app.py
-# Global Statistics Explorer (CSV / XLSX only)
+# =========================================================
+# Global Stats Explorer — page routing like cov19st.py
+# (CSV / XLSX ONLY)
+# =========================================================
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Dict, List, Optional
 
-# --------------------------------------------------
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+from streamlit_option_menu import option_menu
+
+# ----------------------------
 # Config
-# --------------------------------------------------
-
-st.set_page_config(
-    page_title="Global Stats Explorer",
-    layout="wide",
-)
+# ----------------------------
+st.set_page_config(layout="wide", page_title="Global Stats Explorer")
 
 DATA_ROOT = Path("data")
-
-CATEGORIES = {
-    "Birth & Death Rates": DATA_ROOT / "WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT.xlsx",
-    "Wealth Distribution": DATA_ROOT / "wealth",
-    "Education & Indices": DATA_ROOT / "HDR25_Statistical_Annex_HDI_Table.xlsx",
-    "Crime Rates": DATA_ROOT / "crime",
-    "Immigration & Migration": DATA_ROOT / "undesa_pd_2024_ims_stock_by_sex_destination_and_origin.xlsx",
-    "Authoritarianism / Regime": DATA_ROOT / "regime",
+CATEGORIES: Dict[str, Path] = {
+    "Birth rate & Death rate": DATA_ROOT / "demographics",
+    "Wealth distribution": DATA_ROOT / "wealth",
+    "Education & indices": DATA_ROOT / "education",
+    "Crime rates": DATA_ROOT / "crime",
+    "Immigration / migration": DATA_ROOT / "migration",
+    "Authoritarianism / regime": DATA_ROOT / "regime",
 }
 
-# --------------------------------------------------
-# Utilities
-# --------------------------------------------------
-
-@st.cache_data
-def load_dataset(path: Path) -> pd.DataFrame:
-    if path.suffix == ".csv":
-        return pd.read_csv(path)
-    if path.suffix in [".xlsx", ".xls"]:
-        return pd.read_excel(path)
-    raise ValueError("Unsupported file type")
+SUPPORTED_EXTS = {".csv", ".xlsx", ".xls"}
 
 
-def dataset_profile(df: pd.DataFrame):
+# =========================================================
+# Helpers — CSV/XLSX only
+# =========================================================
+@st.cache_data(show_spinner=False)
+def load_file(path: str) -> pd.DataFrame:
+    p = Path(path)
+    suf = p.suffix.lower()
+    if suf == ".csv":
+        return pd.read_csv(p)
+    if suf in (".xlsx", ".xls"):
+        return pd.read_excel(p)
+    raise ValueError("Unsupported file type (CSV/XLSX only).")
+
+
+@st.cache_data(show_spinner=False)
+def load_upload_bytes(filename: str, b: bytes) -> pd.DataFrame:
+    suf = Path(filename).suffix.lower()
+    bio = pd.io.common.BytesIO(b)
+    if suf == ".csv":
+        return pd.read_csv(bio)
+    if suf in (".xlsx", ".xls"):
+        return pd.read_excel(bio)
+    raise ValueError("Unsupported file type (CSV/XLSX only).")
+
+
+def df_profile(df: pd.DataFrame) -> dict:
     return {
-        "Rows": df.shape[0],
-        "Columns": df.shape[1],
-        "Numeric columns": df.select_dtypes(include=np.number).columns.tolist(),
-        "Categorical columns": df.select_dtypes(exclude=np.number).columns.tolist(),
-        "Missing values": int(df.isna().sum().sum()),
+        "rows": int(df.shape[0]),
+        "cols": int(df.shape[1]),
+        "missing": int(df.isna().sum().sum()),
+        "numeric": df.select_dtypes(include=[np.number]).columns.tolist(),
+        "categorical": df.select_dtypes(exclude=[np.number]).columns.tolist(),
     }
 
 
-# --------------------------------------------------
-# Sidebar – Dataset selection
-# --------------------------------------------------
+def ss_key(page: str, name: str) -> str:
+    return f"{page}__{name}"
 
-st.sidebar.title("📂 Dataset Library")
 
-category = st.sidebar.selectbox(
-    "Select category",
-    list(CATEGORIES.keys())
-)
+# =========================================================
+# Dataset loader per "page"
+# - supports: load from folder + upload
+# - supports loading MULTIPLE datasets simultaneously
+# =========================================================
+def dataset_loader_ui(page_name: str, folder: Path) -> Dict[str, pd.DataFrame]:
+    folder.mkdir(parents=True, exist_ok=True)
 
-folder = CATEGORIES[category]
-files = sorted([f for f in folder.glob("*") if f.suffix in [".csv", ".xlsx"]])
+    loaded_key = ss_key(page_name, "datasets")
+    if loaded_key not in st.session_state:
+        st.session_state[loaded_key] = {}  # label -> df
 
-uploaded_file = st.sidebar.file_uploader(
-    "Or upload your own CSV / XLSX",
-    type=["csv", "xlsx"]
-)
+    loaded: Dict[str, pd.DataFrame] = st.session_state[loaded_key]
 
-dataset_name = None
-df = None
+    st.subheader("1) Datasets (CSV/XLSX only)")
 
-if uploaded_file:
-    df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
-    dataset_name = uploaded_file.name
-elif files:
-    dataset_name = st.sidebar.selectbox(
-        "Select dataset",
-        files,
-        format_func=lambda x: x.name
-    )
-    df = load_dataset(dataset_name)
+    files = sorted([p for p in folder.glob("*") if p.suffix.lower() in SUPPORTED_EXTS])
 
-# --------------------------------------------------
-# Main layout
-# --------------------------------------------------
+    colL, colR = st.columns([1.25, 1], gap="large")
 
-st.title("🌍 Global Statistics Explorer")
+    with colL:
+        with st.expander("Load from folder", expanded=True):
+            if files:
+                chosen = st.multiselect(
+                    "Select one or more datasets",
+                    options=files,
+                    format_func=lambda p: p.name,
+                    key=ss_key(page_name, "disk_pick"),
+                )
+                if st.button("Load selected", key=ss_key(page_name, "load_disk_btn")):
+                    for p in chosen:
+                        label = p.name
+                        if label in loaded:
+                            continue
+                        loaded[label] = load_file(str(p))
+                    st.session_state[loaded_key] = loaded
+                    st.success("Loaded selected datasets.")
+            else:
+                st.info(f"No CSV/XLSX files found in `{folder}` yet.")
 
-if df is None:
-    st.info("Please select or upload a dataset.")
-    st.stop()
-
-# --------------------------------------------------
-# Section 1: Dataset Overview
-# --------------------------------------------------
-
-st.header("1️⃣ Dataset Overview")
-
-profile = dataset_profile(df)
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Rows", profile["Rows"])
-col2.metric("Columns", profile["Columns"])
-col3.metric("Numeric cols", len(profile["Numeric columns"]))
-col4.metric("Missing values", profile["Missing values"])
-
-with st.expander("Preview data"):
-    st.dataframe(df.head(50), use_container_width=True)
-
-# --------------------------------------------------
-# Section 2: Analyst Graph Area (guided)
-# --------------------------------------------------
-
-st.header("2️⃣ Curated Graph Area")
-
-num_cols = profile["Numeric columns"]
-cat_cols = profile["Categorical columns"]
-
-if num_cols:
-    col_a, col_b, col_c = st.columns(3)
-
-    x_axis = col_a.selectbox("X-axis", options=df.columns)
-    y_axis = col_b.selectbox("Y-axis", options=num_cols)
-    color_by = col_c.selectbox("Color (optional)", options=[None] + cat_cols)
-
-    chart_type = st.selectbox(
-        "Chart type",
-        ["Line", "Bar", "Scatter", "Choropleth (ISO-3)"]
-    )
-
-    fig = None
-
-    if chart_type == "Line":
-        fig = px.line(df, x=x_axis, y=y_axis, color=color_by)
-    elif chart_type == "Bar":
-        fig = px.bar(df, x=x_axis, y=y_axis, color=color_by)
-    elif chart_type == "Scatter":
-        fig = px.scatter(df, x=x_axis, y=y_axis, color=color_by)
-    elif chart_type == "Choropleth (ISO-3)":
-        if "iso3" not in df.columns:
-            st.warning("Dataset must contain an 'iso3' column.")
-        else:
-            fig = px.choropleth(
-                df,
-                locations="iso3",
-                color=y_axis,
-                hover_name=color_by if color_by else None,
+        with st.expander("Upload dataset", expanded=False):
+            up = st.file_uploader(
+                "Upload CSV/XLSX",
+                type=["csv", "xlsx", "xls"],
+                key=ss_key(page_name, "uploader"),
             )
+            if up is not None:
+                df = load_upload_bytes(up.name, up.getvalue())
+                label = up.name
+                # avoid collisions
+                if label in loaded:
+                    base = Path(label).stem
+                    ext = Path(label).suffix
+                    i = 2
+                    while f"{base} ({i}){ext}" in loaded:
+                        i += 1
+                    label = f"{base} ({i}){ext}"
+                loaded[label] = df
+                st.session_state[loaded_key] = loaded
+                st.success(f"Uploaded and loaded: {label}")
 
-    if fig:
-        st.plotly_chart(fig, use_container_width=True)
+    with colR:
+        with st.expander("Loaded datasets", expanded=True):
+            if not loaded:
+                st.warning("No datasets loaded yet.")
+            else:
+                labels = list(loaded.keys())
+                for i, lbl in enumerate(labels):
+                    prof = df_profile(loaded[lbl])
+                    a, b, c, d, e = st.columns([3.2, 1, 1, 1, 1])
+                    a.markdown(f"**{lbl}**")
+                    b.caption(f"{prof['rows']:,} rows")
+                    c.caption(f"{prof['cols']:,} cols")
+                    d.caption(f"{prof['missing']:,} missing")
+                    if e.button("Remove", key=ss_key(page_name, f"rm_{i}")):
+                        loaded.pop(lbl, None)
+                        st.session_state[loaded_key] = loaded
+                        st.rerun()
 
+                preview_lbl = st.selectbox(
+                    "Preview",
+                    labels,
+                    key=ss_key(page_name, "preview_lbl"),
+                )
+                st.dataframe(loaded[preview_lbl].head(50), use_container_width=True)
+
+    return loaded
+
+
+# =========================================================
+# Exploratory builder (client makes their own chart)
+# =========================================================
+def exploratory_builder(page_name: str, datasets: Dict[str, pd.DataFrame]) -> None:
+    st.subheader("3) Exploratory Zone (client can build charts)")
+
+    if not datasets:
+        st.info("Load a dataset to enable exploration.")
+        return
+
+    ds_lbl = st.selectbox("Dataset", list(datasets.keys()), key=ss_key(page_name, "exp_ds"))
+    df = datasets[ds_lbl]
+    prof = df_profile(df)
+
+    if not prof["numeric"]:
+        st.warning("No numeric columns available for Y-axis in this dataset.")
+        return
+
+    # optional filters (lightweight)
+    with st.expander("Filters (optional)", expanded=False):
+        df_f = df.copy()
+        for col in prof["categorical"][:10]:
+            uniq = df[col].dropna().unique()
+            if len(uniq) == 0 or len(uniq) > 3000:
+                continue
+            chosen = st.multiselect(col, sorted(uniq)[:5000], key=ss_key(page_name, f"flt_{ds_lbl}_{col}"))
+            if chosen:
+                df_f = df_f[df_f[col].isin(chosen)]
+    st.caption(f"Rows after filters: {len(df_f):,}")
+
+    c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 1, 1])
+    kind = c1.selectbox("Chart", ["Scatter", "Line", "Bar", "Box", "Map (iso3)"], key=ss_key(page_name, "exp_kind"))
+    x = c2.selectbox("X", list(df_f.columns), key=ss_key(page_name, "exp_x"))
+    y = c3.selectbox("Y", prof["numeric"], key=ss_key(page_name, "exp_y"))
+    color = c4.selectbox("Color", [None] + prof["categorical"], key=ss_key(page_name, "exp_color"))
+    size = c5.selectbox("Size", [None] + prof["numeric"], key=ss_key(page_name, "exp_size"))
+
+    if kind == "Scatter":
+        fig = px.scatter(df_f, x=x, y=y, color=color, size=size)
+    elif kind == "Line":
+        fig = px.line(df_f, x=x, y=y, color=color)
+    elif kind == "Bar":
+        fig = px.bar(df_f, x=x, y=y, color=color)
+    elif kind == "Box":
+        fig = px.box(df_f, x=x, y=y, color=color)
+    else:
+        if "iso3" not in df_f.columns:
+            st.warning("Map requires a column named 'iso3' (ISO-3 codes).")
+            return
+        fig = px.choropleth(df_f, locations="iso3", color=y, hover_name="country" if "country" in df_f.columns else None)
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# =========================================================
+# Page renderers — ADD YOUR GRAPH ZONES HERE
+# Each page has explicit code blocks for you to extend
+# =========================================================
+def render_birth_death():
+    st.title("👶💀 Birth rate & Death rate")
+    datasets = dataset_loader_ui("Birth rate & Death rate", CATEGORIES["Birth rate & Death rate"])
+
+    st.divider()
+    st.header("2) Graph Area (add your indicator charts here)")
+
+    # -------------------------------------------------
+    # GRAPH ZONE A: (ADD YOUR GRAPHS HERE)
+    # Example scaffold: time series
+    # -------------------------------------------------
+    st.subheader("Graph Zone A — Time series (scaffold)")
+    if datasets:
+        ds_lbl = st.selectbox("Dataset (Zone A)", list(datasets.keys()), key="bd_zoneA_ds")
+        df = datasets[ds_lbl]
+        prof = df_profile(df)
+        if prof["numeric"]:
+            x = st.selectbox("X (e.g., year/date)", list(df.columns), key="bd_zoneA_x")
+            y = st.selectbox("Y (indicator)", prof["numeric"], key="bd_zoneA_y")
+            color = st.selectbox("Color (optional)", [None] + prof["categorical"], key="bd_zoneA_color")
+            st.plotly_chart(px.line(df, x=x, y=y, color=color), use_container_width=True)
+        else:
+            st.warning("No numeric columns in selected dataset.")
+    else:
+        st.info("Load at least one dataset to enable Zone A.")
+
+    # -------------------------------------------------
+    # GRAPH ZONE B: (ADD YOUR GRAPHS HERE)
+    # Example scaffold: choropleth map
+    # -------------------------------------------------
+    st.subheader("Graph Zone B — Choropleth (scaffold)")
+    if datasets:
+        ds_lbl = st.selectbox("Dataset (Zone B)", list(datasets.keys()), key="bd_zoneB_ds")
+        df = datasets[ds_lbl]
+        prof = df_profile(df)
+        if "iso3" in df.columns and prof["numeric"]:
+            y = st.selectbox("Value column (map color)", prof["numeric"], key="bd_zoneB_y")
+            st.plotly_chart(px.choropleth(df, locations="iso3", color=y), use_container_width=True)
+        else:
+            st.info("Requires `iso3` column + at least one numeric column.")
+    else:
+        st.info("Load at least one dataset to enable Zone B.")
+
+    st.divider()
+    exploratory_builder("Birth rate & Death rate", datasets)
+
+
+def render_wealth():
+    st.title("💰 Wealth distribution / inequality")
+    datasets = dataset_loader_ui("Wealth distribution", CATEGORIES["Wealth distribution"])
+
+    st.divider()
+    st.header("2) Graph Area (add your indicator charts here)")
+
+    # -------------------------------------------------
+    # GRAPH ZONE A (ADD YOUR GRAPHS HERE)
+    # -------------------------------------------------
+    st.subheader("Graph Zone A — Inequality trends (placeholder)")
+    st.info("Add your wealth/inequality indicator graphs here (e.g., top1%, Gini, wealth shares).")
+
+    # -------------------------------------------------
+    # GRAPH ZONE B (ADD YOUR GRAPHS HERE)
+    # -------------------------------------------------
+    st.subheader("Graph Zone B — Cross-country comparison (placeholder)")
+    st.info("Add your cross-sectional comparisons here (selected year, selected group).")
+
+    st.divider()
+    exploratory_builder("Wealth distribution", datasets)
+
+
+def render_education():
+    st.title("🎓 Education levels & indices")
+    datasets = dataset_loader_ui("Education & indices", CATEGORIES["Education & indices"])
+
+    st.divider()
+    st.header("2) Graph Area (add your indicator charts here)")
+
+    # -------------------------------------------------
+    # GRAPH ZONE A (ADD YOUR GRAPHS HERE)
+    # -------------------------------------------------
+    st.subheader("Graph Zone A — Attainment / enrollment (placeholder)")
+    st.info("Add your education indicator graphs here (enrollment, attainment, literacy, etc.).")
+
+    # -------------------------------------------------
+    # GRAPH ZONE B (ADD YOUR GRAPHS HERE)
+    # -------------------------------------------------
+    st.subheader("Graph Zone B — Composite education index (placeholder)")
+    st.info("Add your multi-element index graphs here (weights, subcomponents, comparisons).")
+
+    st.divider()
+    exploratory_builder("Education & indices", datasets)
+
+
+def render_crime():
+    st.title("🚔 Crime rates")
+    datasets = dataset_loader_ui("Crime rates", CATEGORIES["Crime rates"])
+
+    st.divider()
+    st.header("2) Graph Area (add your indicator charts here)")
+
+    # -------------------------------------------------
+    # GRAPH ZONE A (ADD YOUR GRAPHS HERE)
+    # -------------------------------------------------
+    st.subheader("Graph Zone A — Homicide / key crime indicators (placeholder)")
+    st.info("Add crime indicator graphs here (homicide rates, property crime, etc.).")
+
+    # -------------------------------------------------
+    # GRAPH ZONE B (ADD YOUR GRAPHS HERE)
+    # -------------------------------------------------
+    st.subheader("Graph Zone B — Crime vs other variables (placeholder)")
+    st.info("Add correlation/scatter panels here (crime vs inequality, regime score, etc.).")
+
+    st.divider()
+    exploratory_builder("Crime rates", datasets)
+
+
+def render_migration():
+    st.title("🧳 Immigration / migration")
+    datasets = dataset_loader_ui("Immigration / migration", CATEGORIES["Immigration / migration"])
+
+    st.divider()
+    st.header("2) Graph Area (add your indicator charts here)")
+
+    # -------------------------------------------------
+    # GRAPH ZONE A (ADD YOUR GRAPHS HERE)
+    # -------------------------------------------------
+    st.subheader("Graph Zone A — Migrant stock/flows (placeholder)")
+    st.info("Add migration indicators here (stock, flows, refugees, asylum, etc.).")
+
+    # -------------------------------------------------
+    # GRAPH ZONE B (ADD YOUR GRAPHS HERE)
+    # -------------------------------------------------
+    st.subheader("Graph Zone B — Origin/destination matrix (placeholder)")
+    st.info("Add heatmaps / sankey style charts here if your data supports it.")
+
+    st.divider()
+    exploratory_builder("Immigration / migration", datasets)
+
+
+def render_regime():
+    st.title("🏛️ Authoritarianism / regime indices")
+    datasets = dataset_loader_ui("Authoritarianism / regime", CATEGORIES["Authoritarianism / regime"])
+
+    st.divider()
+    st.header("2) Graph Area (add your indicator charts here)")
+
+    # -------------------------------------------------
+    # GRAPH ZONE A (ADD YOUR GRAPHS HERE)
+    # -------------------------------------------------
+    st.subheader("Graph Zone A — Regime score over time (placeholder)")
+    st.info("Add regime indicator trends here (V-Dem style indices, Freedom scores, Polity, etc.).")
+
+    # -------------------------------------------------
+    # GRAPH ZONE B (ADD YOUR GRAPHS HERE)
+    # -------------------------------------------------
+    st.subheader("Graph Zone B — Regime map / clusters (placeholder)")
+    st.info("Add choropleths, clustering, or quadrant charts here.")
+
+    st.divider()
+    exploratory_builder("Authoritarianism / regime", datasets)
+
+
+# =========================================================
+# Sidebar navigation (same pattern as your cov19st.py)
+# =========================================================
+with st.sidebar:
+    selected = option_menu(
+        menu_title="Navigation",
+        options=list(CATEGORIES.keys()),
+        menu_icon="arrow-down-right-circle-fill",
+        icons=["activity", "cash-coin", "mortarboard", "shield", "globe", "bank"],
+        default_index=0,
+    )
+
+# =========================================================
+# Route to the selected "page"
+# =========================================================
+if selected == "Birth rate & Death rate":
+    render_birth_death()
+elif selected == "Wealth distribution":
+    render_wealth()
+elif selected == "Education & indices":
+    render_education()
+elif selected == "Crime rates":
+    render_crime()
+elif selected == "Immigration / migration":
+    render_migration()
+elif selected == "Authoritarianism / regime":
+    render_regime()
 else:
-    st.warning("No numeric columns available for charting.")
-
-# --------------------------------------------------
-# Section 3: Exploratory Zone (client-built)
-# --------------------------------------------------
-
-st.header("3️⃣ Exploratory Zone (Build Your Own)")
-
-st.markdown("""
-This area allows **free-form exploration**.
-Clients can:
-- Pick any columns
-- Filter data
-- Create multiple charts
-""")
-
-with st.expander("🔍 Filter data"):
-    filters = {}
-    for col in cat_cols:
-        values = st.multiselect(
-            f"Filter {col}",
-            options=df[col].dropna().unique()
-        )
-        if values:
-            filters[col] = values
-
-df_filtered = df.copy()
-for col, vals in filters.items():
-    df_filtered = df_filtered[df_filtered[col].isin(vals)]
-
-st.subheader("Custom Chart Builder")
-
-x = st.selectbox("X", options=df_filtered.columns, key="explore_x")
-y = st.selectbox("Y", options=num_cols, key="explore_y")
-color = st.selectbox("Color", options=[None] + cat_cols, key="explore_color")
-size = st.selectbox("Size", options=[None] + num_cols, key="explore_size")
-
-chart_kind = st.radio(
-    "Chart",
-    ["Scatter", "Line", "Bar"],
-    horizontal=True
-)
-
-if chart_kind == "Scatter":
-    fig2 = px.scatter(df_filtered, x=x, y=y, color=color, size=size)
-elif chart_kind == "Line":
-    fig2 = px.line(df_filtered, x=x, y=y, color=color)
-else:
-    fig2 = px.bar(df_filtered, x=x, y=y, color=color)
-
-st.plotly_chart(fig2, use_container_width=True)
-
-# --------------------------------------------------
-# Footer
-# --------------------------------------------------
-
-st.caption("© Global Stats Explorer – CSV/XLSX-only analytical framework")
+    st.title("Global Stats Explorer")
+    st.info("Choose a page from the sidebar.")
