@@ -3,3 +3,4 @@ pandas>=2.0
 numpy
 plotly>=5.18
 openpyxl
+streamlit-option-menu>=0.3.6
