@@ -139,7 +139,7 @@ def render_birth_death():
 
     st.title("👶💀 Birth rate & Death rate")
     BASE_DIR = Path(__file__).resolve().parent
-    DATA_DIR = BASE_DIR / "data" / "demographics"
+    DATA_DIR = BASE_DIR / "data" / "demographics" / 'demographics.csv'
     datasets = load_file(DATA_DIR)
     datasets = filter_country_2023(datasets.copy())
     
