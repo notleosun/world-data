@@ -234,7 +234,15 @@ def render_birth_death():
     st.subheader("Graph Zone A — Time series (scaffold)")
     if datasets:
         ds_lbl = st.selectbox("Dataset (Zone A)", list(datasets.keys()), key="bd_zoneA_ds")
-        df = datasets[ds_lbl]
+        df_raw = datasets[ds_lbl]
+        df = df_raw.copy()
+        # Filter year = 2023
+        if "year" in df.columns:
+            df = df[df["year"].astype(str) == "2023"]
+        
+        # Filter type = country
+        if "type" in df.columns:
+            df = df[df["type"].str.lower() == "country"]
         prof = df_profile(df)
         if prof["numeric"]:
             x = st.selectbox("X (e.g., year/date)", list(df.columns), key="bd_zoneA_x")
