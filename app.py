@@ -66,7 +66,8 @@ def ss_key(page: str, name: str) -> str:
 # - supports: load from folder + upload
 # - supports loading MULTIPLE datasets simultaneously
 # =========================================================
-def dataset_loader_ui(page_name: str, folder: Path) -> Dict[str, pd.DataFrame]:
+def dataset_loader_ui(page_name: str, folder) -> Dict[str, pd.DataFrame]:
+    folder = Path(folder).expanduser()  # <-- converts str -> Path and expands "~"
     folder.mkdir(parents=True, exist_ok=True)
 
     loaded_key = ss_key(page_name, "datasets")
