@@ -223,10 +223,10 @@ def exploratory_builder(page_name: str, datasets: Dict[str, pd.DataFrame]) -> No
 def render_birth_death():
     def filter_country_2023(df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
-        if "year" in out.columns:
-            out = out[out["year"].astype(str) == "2023"]
-        if "type" in out.columns:
-            out = out[out["type"].astype(str).str.lower() == "country/area"]
+        if "Year" in out.columns:
+            out = out[out["Year"].astype(str) == "2023"]
+        if "Type" in out.columns:
+            out = out[out["Type"].astype(str).str.lower() == "country/area"]
         return out
     
     st.title("👶💀 Birth rate & Death rate")
