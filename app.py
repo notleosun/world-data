@@ -330,7 +330,7 @@ def render_birth_death():
         data_folder=CATEGORIES["Birth & Death"],
         description="Vital statistics: birth rate, death rate, fertility, mortality metrics.",
         default_year="2023",
-        default_type="country",
+        default_type="Country/Area",
     )
 
 
