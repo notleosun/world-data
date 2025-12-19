@@ -376,7 +376,7 @@ def render_regime():
 with st.sidebar:
     selected = option_menu(
         menu_title="Navigation",
-        options=list(CATEGORIES.keys()),
+        options=["Birth rate & Death rate", "Wealth distribution", "Education & indices", "Crime rates", "Immigration / migration", "Authoritarianism / regime"],
         menu_icon="arrow-down-right-circle-fill",
         icons=["activity", "cash-coin", "mortarboard", "shield", "globe", "bank"],
         default_index=0,
