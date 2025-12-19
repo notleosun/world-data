@@ -1,1 +1,7 @@
-
+Population data - https://population.un.org/wpp/
+Inequality data - https://wid.world/
+Education data - https://hdr.undp.org/data-center/human-development-index#/indicies/HDI
+https://databrowser.uis.unesco.org/
+Immigration data - https://www.un.org/development/desa/pd/content/international-migrant-stock
+Crime data - https://data.unodc.org/
+Democracy data - https://v-dem.net/data/the-v-dem-dataset/
