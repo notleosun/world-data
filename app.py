@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 
 import numpy as np
 import pandas as pd
@@ -75,7 +75,7 @@ def ss_key(page: str, name: str) -> str:
 # - supports: load from folder + upload
 # - supports loading MULTIPLE datasets simultaneously
 # =========================================================
-def dataset_loader_ui(page_name: str, folder) -> Dict[str, pd.DataFrame]:
+def dataset_loader_ui(page_name: str, folder, row_filter_fn: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None):
     folder = Path(folder).expanduser()  # <-- converts str -> Path and expands "~"
     folder.mkdir(parents=True, exist_ok=True)
 
@@ -149,13 +149,15 @@ def dataset_loader_ui(page_name: str, folder) -> Dict[str, pd.DataFrame]:
                         loaded.pop(lbl, None)
                         st.session_state[loaded_key] = loaded
                         st.rerun()
-
-                preview_lbl = st.selectbox(
-                    "Preview",
-                    labels,
-                    key=ss_key(page_name, "preview_lbl"),
-                )
-                st.dataframe(loaded[preview_lbl].head(50), use_container_width=True)
+    
+    preview_lbl = st.selectbox("Preview", labels, key=ss_key(page_name, "preview_lbl"))
+    
+    df_prev = loaded[preview_lbl]
+    if row_filter_fn is not None:
+        df_prev = row_filter_fn(df_prev.copy())
+    
+    st.caption(f"Preview rows after filters: {len(df_prev):,}")
+    st.dataframe(df_prev.head(50), use_container_width=True)
 
     return loaded
 
@@ -219,6 +221,14 @@ def exploratory_builder(page_name: str, datasets: Dict[str, pd.DataFrame]) -> No
 # Each page has explicit code blocks for you to extend
 # =========================================================
 def render_birth_death():
+    def filter_country_2023(df: pd.DataFrame) -> pd.DataFrame:
+        out = df.copy()
+        if "year" in out.columns:
+            out = out[out["year"].astype(str) == "2023"]
+        if "type" in out.columns:
+            out = out[out["type"].astype(str).str.lower() == "country/area"]
+        return out
+    
     st.title("👶💀 Birth rate & Death rate")
     BASE_DIR = Path(__file__).resolve().parent
     DATA_DIR = BASE_DIR / "data" / "demographics"
