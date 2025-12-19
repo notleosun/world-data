@@ -226,7 +226,7 @@ def render_birth_death():
         if "Year" in out.columns:
             out = out[out["Year"].astype(str) == "2023"]
         if "Type" in out.columns:
-            out = out[out["Type"].astype(str).str.lower() == "country/area"]
+            out = out[out["Type"].astype(str) == "Country/Area"]
         return out
     
     st.title("👶💀 Birth rate & Death rate")
