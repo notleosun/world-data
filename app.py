@@ -1,17 +1,18 @@
 # app.py
 # ------------------------------------------------------------
-# Global Stats Explorer (from scratch, cov19-style routing)
-# - Sidebar option_menu navigation (like cov19 file)
-# - Each category is its own "page" (render_* functions)
+# Global Stats Explorer (cov19-style routing)
+# - Sidebar option_menu navigation
+# - Each category is a separate "page"
 # - Folder-only dataset loader + preview (NO uploads)
-# - Clear code zones in each page where YOU add graphs
-# - CSV/XLSX only; robust Excel engine handling
+# - NO year/type filter functions (datasets are assumed pre-filtered)
+# - Clear Graph Zones A/B/C for you to add indicator-specific charts
+# - CSV/XLSX only; explicit excel engines
 # ------------------------------------------------------------
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -30,17 +31,13 @@ st.set_page_config(page_title="Global Stats Explorer", layout="wide")
 BASE_DIR = Path(__file__).resolve().parent
 DATA_ROOT = BASE_DIR / "data"  # keep data inside repo folder
 
-# If you want a single shared data folder (no categories), set:
-# DATA_ROOT = BASE_DIR / "data_all"
-# and point all pages to that folder.
-
 CATEGORIES = {
-    "Birth & Death": DATA_ROOT / "demographics",
-    "Wealth Distribution": DATA_ROOT / "wealth",
-    "Education & Indices": DATA_ROOT / "education",
-    "Crime Rates": DATA_ROOT / "crime",
-    "Migration": DATA_ROOT / "migration",
-    "Regime / Authoritarianism": DATA_ROOT / "regime",
+    "Birth rate & Death rate": DATA_ROOT / "demographics",
+    "Wealth distribution / inequality": DATA_ROOT / "wealth",
+    "Education levels & indices": DATA_ROOT / "education",
+    "Crime rates": DATA_ROOT / "crime",
+    "Immigration / migration": DATA_ROOT / "migration",
+    "Authoritarianism / regime indices": DATA_ROOT / "regime",
 }
 
 SUPPORTED_EXTS = {".csv", ".xlsx", ".xlsm", ".xls"}  # remove ".xls" if you don't want xlrd
@@ -61,13 +58,11 @@ def load_file(path: str) -> pd.DataFrame:
     if suf == ".csv":
         return pd.read_csv(p)
 
-    # Modern excel
     if suf in (".xlsx", ".xlsm"):
         return pd.read_excel(p, engine="openpyxl")
 
-    # Legacy .xls (requires xlrd)
     if suf == ".xls":
-        # If you keep .xls, add xlrd to requirements: pip install xlrd
+        # If you keep .xls support, add xlrd to requirements: pip install xlrd
         return pd.read_excel(p, engine="xlrd")
 
     raise ValueError(f"Unsupported file type: {suf}")
@@ -82,13 +77,11 @@ def df_profile(df: pd.DataFrame) -> dict:
         "categorical": df.select_dtypes(exclude=[np.number]).columns.tolist(),
     }
 
-# ============================================================
-# Folder-only Loader + Preview (CODE STYLE, not a function)
-# We'll "inline" this pattern inside each page renderer.
-# To reduce repetition, we do keep a tiny helper to get datasets,
-# but you can paste the block if you prefer.
-# ============================================================
+
 def get_datasets_map(page_name: str) -> Dict[str, pd.DataFrame]:
+    """
+    Session-state storage for datasets loaded on a given page.
+    """
     key = ss_key(page_name, "datasets_map")
     if key not in st.session_state:
         st.session_state[key] = {}
@@ -96,29 +89,19 @@ def get_datasets_map(page_name: str) -> Dict[str, pd.DataFrame]:
 
 
 # ============================================================
-# PAGE TEMPLATE (each page uses this structure)
-# - left: folder loader + preview
-# - right: graph zones (you add graphs)
+# Page renderer template
 # ============================================================
-def render_page(
-    *,
-    page_name: str,
-    data_folder: Path,
-    description: str,
-    default_year: str = "2023",
-    default_type: str = "country",
-) -> None:
+def render_page(*, page_name: str, data_folder: Path, description: str) -> None:
     st.title(page_name)
     st.caption(description)
 
     # Ensure folder exists inside repo
     data_folder.mkdir(parents=True, exist_ok=True)
 
-    # Two-column layout
     left, right = st.columns([1.1, 1.9], gap="large")
 
     # ----------------------------
-    # LEFT: Loader + Preview (NO uploads)
+    # LEFT: Folder-only loader + preview (NO uploads)
     # ----------------------------
     with left:
         st.subheader("1) Load & Preview (folder-only)")
@@ -131,7 +114,7 @@ def render_page(
         if not files:
             st.info("No CSV/XLSX files found. Add files into the folder above.")
         else:
-            with st.expander("Load datasets", expanded=True):
+            with st.expander("Load datasets from folder", expanded=True):
                 chosen = st.multiselect(
                     "Select one or more files to load",
                     options=files,
@@ -152,6 +135,7 @@ def render_page(
                     st.rerun()
 
             with st.expander("Loaded datasets + preview", expanded=True):
+                datasets_map = get_datasets_map(page_name)  # refresh
                 if len(datasets_map) == 0:
                     st.warning("No datasets loaded yet.")
                 else:
@@ -175,48 +159,44 @@ def render_page(
                         )
 
                         df_prev = datasets_map[preview_lbl].copy()
-
-                        # OPTIONAL: preview filters
-                        with st.expander("Preview filters (optional)", expanded=False):
-                            year_val = st.text_input("year =", value=default_year, key=ss_key(page_name, "prev_year"))
-                            type_val = st.text_input("type =", value=default_type, key=ss_key(page_name, "prev_type"))
-                            apply_prev_filters = st.checkbox("Apply preview filters", value=True, key=ss_key(page_name, "prev_apply"))
-
-                        if apply_prev_filters:
-                            df_prev = apply_base_filter(df_prev, year=year_val, type_value=type_val)
-
                         st.caption(f"Preview rows: {len(df_prev):,} | cols: {df_prev.shape[1]:,}")
                         st.dataframe(df_prev.head(50), width="stretch")
 
+                        with st.expander("Columns", expanded=False):
+                            st.dataframe(
+                                pd.DataFrame(
+                                    {"column": df_prev.columns, "dtype": df_prev.dtypes.astype(str).values}
+                                ),
+                                width="stretch",
+                            )
+
     # ----------------------------
-    # RIGHT: Graph Zones (YOU add graphs here)
+    # RIGHT: Graph zones (you edit/add graphs here)
     # ----------------------------
     with right:
         datasets_map = get_datasets_map(page_name)  # refresh
 
         st.subheader("2) Graph Areas (add graphs per indicator)")
-        st.caption("Each zone is a separate code area for you to add charts.")
+        st.caption("No global filters here — datasets are assumed pre-filtered before loading.")
 
         if not isinstance(datasets_map, dict) or len(datasets_map) == 0:
             st.info("Load at least one dataset on the left to enable graphs.")
             return
 
-        # Pick active dataset for zones (you can change per-zone too)
         active_ds = st.selectbox(
             "Active dataset (used by Graph Zones unless overridden)",
             options=list(datasets_map.keys()),
             key=ss_key(page_name, "active_ds"),
         )
+
         df_work = datasets_map[active_ds].copy()
-        st.caption(f"Active dataset rows: {len(df_work):,}")
+        prof = df_profile(df_work)
 
         # =========================================================
-        # GRAPH ZONE A (YOU ADD GRAPHS HERE)
-        # Example: simple line chart scaffold
+        # GRAPH ZONE A — Time series / trend scaffold
         # =========================================================
-        st.markdown("### Graph Zone A — (your indicator chart)")
+        st.markdown("### Graph Zone A — Trend / Time series")
         with st.expander("Zone A controls", expanded=True):
-            prof = df_profile(df_work)
             if len(prof["numeric"]) == 0:
                 st.warning("No numeric columns available to plot.")
             else:
@@ -230,43 +210,46 @@ def render_page(
         st.divider()
 
         # =========================================================
-        # GRAPH ZONE B (YOU ADD GRAPHS HERE)
-        # Example: choropleth scaffold (requires iso3)
+        # GRAPH ZONE B — Map / cross-sectional scaffold
         # =========================================================
-        st.markdown("### Graph Zone B — (map / cross-sectional)")
+        st.markdown("### Graph Zone B — Map / Cross-section")
         with st.expander("Zone B controls", expanded=True):
-            prof = df_profile(df_work)
-            if "iso3" not in df_work.columns:
-                st.info("Zone B map requires an `iso3` column (ISO-3 country codes).")
-            elif len(prof["numeric"]) == 0:
-                st.warning("No numeric columns available to color the map.")
-            else:
+            if "ISO3 Alpha-code" in df_work.columns and len(prof["numeric"]) > 0:
+                iso_col = "ISO3 Alpha-code"
                 val_col = st.selectbox("Map value (numeric)", options=prof["numeric"], key=ss_key(page_name, "zb_val"))
-                hover = "country" if "country" in df_work.columns else None
-                fig = px.choropleth(df_work, locations="iso3", color=val_col, hover_name=hover, title=f"Zone B: {val_col} map")
+                hover = "Region, subregion, country or area *" if "Region, subregion, country or area *" in df_work.columns else None
+                fig = px.choropleth(df_work, locations=iso_col, color=val_col, hover_name=hover, title=f"Zone B: {val_col} map")
                 st.plotly_chart(fig, use_container_width=True)
+            elif "iso3" in df_work.columns and len(prof["numeric"]) > 0:
+                iso_col = "iso3"
+                val_col = st.selectbox("Map value (numeric)", options=prof["numeric"], key=ss_key(page_name, "zb_val2"))
+                hover = "country" if "country" in df_work.columns else None
+                fig = px.choropleth(df_work, locations=iso_col, color=val_col, hover_name=hover, title=f"Zone B: {val_col} map")
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Map needs an ISO3 column (`ISO3 Alpha-code` or `iso3`) and at least one numeric column.")
 
         st.divider()
 
         # =========================================================
-        # GRAPH ZONE C (OPTIONAL) — Exploratory builder
-        # (If you don't want this, delete this block)
+        # GRAPH ZONE C — Exploratory Builder (optional)
         # =========================================================
-        st.markdown("### Graph Zone C — Exploratory (client chart builder)")
+        st.markdown("### Graph Zone C — Exploratory (optional)")
         with st.expander("Zone C builder", expanded=False):
-            df_exp = df_work.copy()
-            prof = df_profile(df_exp)
-
-            if len(prof["numeric"]) == 0:
+            prof2 = df_profile(df_work)
+            if len(prof2["numeric"]) == 0:
                 st.warning("No numeric columns available for charts.")
             else:
-                # Filters (safe string sorting)
-                with st.expander("Extra filters", expanded=False):
-                    for col in prof["categorical"][:10]:
+                # Optional categorical filters (safe string sorting)
+                df_exp = df_work.copy()
+                with st.expander("Filters (optional)", expanded=False):
+                    for col in prof2["categorical"][:10]:
                         uniq = df_exp[col].dropna().unique()
                         if len(uniq) == 0:
                             continue
-                        # safe string conversion prevents sort errors
+                        if len(uniq) > 3000:
+                            st.caption(f"Skipping '{col}' (too many unique values).")
+                            continue
                         uniq_str = sorted({str(v) for v in uniq})
                         chosen = st.multiselect(
                             f"{col}",
@@ -279,9 +262,9 @@ def render_page(
                 c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 1, 1])
                 kind = c1.selectbox("Chart", ["Scatter", "Line", "Bar", "Box"], key=ss_key(page_name, "zc_kind"))
                 x = c2.selectbox("X", options=list(df_exp.columns), key=ss_key(page_name, "zc_x"))
-                y = c3.selectbox("Y (numeric)", options=prof["numeric"], key=ss_key(page_name, "zc_y"))
-                color = c4.selectbox("Color", options=[None] + prof["categorical"], key=ss_key(page_name, "zc_color"))
-                size = c5.selectbox("Size", options=[None] + prof["numeric"], key=ss_key(page_name, "zc_size"))
+                y = c3.selectbox("Y (numeric)", options=prof2["numeric"], key=ss_key(page_name, "zc_y"))
+                color = c4.selectbox("Color", options=[None] + prof2["categorical"], key=ss_key(page_name, "zc_color"))
+                size = c5.selectbox("Size", options=[None] + prof2["numeric"], key=ss_key(page_name, "zc_size"))
 
                 if kind == "Scatter":
                     fig = px.scatter(df_exp, x=x, y=y, color=color, size=size)
@@ -301,60 +284,48 @@ def render_page(
 def render_birth_death():
     render_page(
         page_name="Birth rate & Death rate",
-        data_folder=CATEGORIES["Birth & Death"],
-        description="Vital statistics: birth rate, death rate, fertility, mortality metrics.",
-        default_year="2023",
-        default_type="Country/Area",
+        data_folder=CATEGORIES["Birth rate & Death rate"],
+        description="Vital statistics: births, deaths, fertility, mortality indicators (assumed pre-filtered).",
     )
 
 
 def render_wealth():
     render_page(
         page_name="Wealth distribution / inequality",
-        data_folder=CATEGORIES["Wealth Distribution"],
-        description="Wealth/income shares, Gini, top percentiles, inequality measures.",
-        default_year="2023",
-        default_type="country",
+        data_folder=CATEGORIES["Wealth distribution / inequality"],
+        description="Wealth/income shares, Gini, top percentiles, inequality measures (assumed pre-filtered).",
     )
 
 
 def render_education():
     render_page(
         page_name="Education levels & indices",
-        data_folder=CATEGORIES["Education & Indices"],
-        description="Attainment, enrollment, learning outcomes, composite education indices.",
-        default_year="2023",
-        default_type="country",
+        data_folder=CATEGORIES["Education levels & indices"],
+        description="Attainment, enrollment, learning outcomes, composite education indices (assumed pre-filtered).",
     )
 
 
 def render_crime():
     render_page(
         page_name="Crime rates",
-        data_folder=CATEGORIES["Crime Rates"],
-        description="Homicide rates and crime indicators; comparisons and trends.",
-        default_year="2023",
-        default_type="country",
+        data_folder=CATEGORIES["Crime rates"],
+        description="Crime indicators (homicide etc.), comparisons and dashboards (assumed pre-filtered).",
     )
 
 
 def render_migration():
     render_page(
         page_name="Immigration / migration",
-        data_folder=CATEGORIES["Migration"],
-        description="Migrant stock/flows, refugees, asylum, origin/destination indicators.",
-        default_year="2023",
-        default_type="country",
+        data_folder=CATEGORIES["Immigration / migration"],
+        description="Migrant stock/flows, refugees, asylum indicators (assumed pre-filtered).",
     )
 
 
 def render_regime():
     render_page(
         page_name="Authoritarianism / regime indices",
-        data_folder=CATEGORIES["Regime / Authoritarianism"],
-        description="Democracy/autocracy indices, governance measures, regime scores.",
-        default_year="2023",
-        default_type="country",
+        data_folder=CATEGORIES["Authoritarianism / regime indices"],
+        description="Democracy/autocracy indices, governance measures (assumed pre-filtered).",
     )
 
 
@@ -364,14 +335,7 @@ def render_regime():
 with st.sidebar:
     selected = option_menu(
         menu_title="Navigation",
-        options=[
-            "Birth rate & Death rate",
-            "Wealth distribution / inequality",
-            "Education levels & indices",
-            "Crime rates",
-            "Immigration / migration",
-            "Authoritarianism / regime indices",
-        ],
+        options=list(CATEGORIES.keys()),
         menu_icon="diagram-3-fill",
         icons=["activity", "cash-coin", "mortarboard", "shield", "globe", "bank"],
         default_index=0,
