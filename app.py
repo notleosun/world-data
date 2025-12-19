@@ -71,98 +71,6 @@ def ss_key(page: str, name: str) -> str:
 
 
 # =========================================================
-# Dataset loader per "page"
-# - supports: load from folder + upload
-# - supports loading MULTIPLE datasets simultaneously
-# =========================================================
-def dataset_loader_ui(page_name: str, folder, row_filter_fn: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None):
-    folder = Path(folder).expanduser()  # <-- converts str -> Path and expands "~"
-    folder.mkdir(parents=True, exist_ok=True)
-
-    loaded_key = ss_key(page_name, "datasets")
-    if loaded_key not in st.session_state:
-        st.session_state[loaded_key] = {}  # label -> df
-
-    loaded: Dict[str, pd.DataFrame] = st.session_state[loaded_key]
-
-    st.subheader("1) Datasets (CSV/XLSX only)")
-
-    files = sorted([p for p in folder.glob("*") if p.suffix.lower() in SUPPORTED_EXTS])
-
-    colL, colR = st.columns([1.25, 1], gap="large")
-
-    with colL:
-        with st.expander("Load from folder", expanded=True):
-            if files:
-                chosen = st.multiselect(
-                    "Select one or more datasets",
-                    options=files,
-                    format_func=lambda p: p.name,
-                    key=ss_key(page_name, "disk_pick"),
-                )
-                if st.button("Load selected", key=ss_key(page_name, "load_disk_btn")):
-                    for p in chosen:
-                        label = p.name
-                        if label in loaded:
-                            continue
-                        loaded[label] = load_file(str(p))
-                    st.session_state[loaded_key] = loaded
-                    st.success("Loaded selected datasets.")
-            else:
-                st.info(f"No CSV/XLSX files found in `{folder}` yet.")
-
-        with st.expander("Upload dataset", expanded=False):
-            up = st.file_uploader(
-                "Upload CSV/XLSX",
-                type=["csv", "xlsx", "xls"],
-                key=ss_key(page_name, "uploader"),
-            )
-            if up is not None:
-                df = load_upload_bytes(up.name, up.getvalue())
-                label = up.name
-                # avoid collisions
-                if label in loaded:
-                    base = Path(label).stem
-                    ext = Path(label).suffix
-                    i = 2
-                    while f"{base} ({i}){ext}" in loaded:
-                        i += 1
-                    label = f"{base} ({i}){ext}"
-                loaded[label] = df
-                st.session_state[loaded_key] = loaded
-                st.success(f"Uploaded and loaded: {label}")
-
-    with colR:
-        with st.expander("Loaded datasets", expanded=True):
-            if not loaded:
-                st.warning("No datasets loaded yet.")
-            else:
-                labels = list(loaded.keys())
-                for i, lbl in enumerate(labels):
-                    prof = df_profile(loaded[lbl])
-                    a, b, c, d, e = st.columns([3.2, 1, 1, 1, 1])
-                    a.markdown(f"**{lbl}**")
-                    b.caption(f"{prof['rows']:,} rows")
-                    c.caption(f"{prof['cols']:,} cols")
-                    d.caption(f"{prof['missing']:,} missing")
-                    if e.button("Remove", key=ss_key(page_name, f"rm_{i}")):
-                        loaded.pop(lbl, None)
-                        st.session_state[loaded_key] = loaded
-                        st.rerun()
-    
-    preview_lbl = st.selectbox("Preview", labels, key=ss_key(page_name, "preview_lbl"))
-    
-    df_prev = loaded[preview_lbl]
-    if row_filter_fn is not None:
-        df_prev = row_filter_fn(df_prev.copy())
-    
-    st.caption(f"Preview rows after filters: {len(df_prev):,}")
-    st.dataframe(df_prev.head(50), use_container_width=True)
-
-    return loaded
-
-
-# =========================================================
 # Exploratory builder (client makes their own chart)
 # =========================================================
 def exploratory_builder(page_name: str, datasets: Dict[str, pd.DataFrame]) -> None:
@@ -228,11 +136,13 @@ def render_birth_death():
         if "Type" in out.columns:
             out = out[out["Type"].astype(str) == "Country/Area"]
         return out
-    
+
     st.title("👶💀 Birth rate & Death rate")
     BASE_DIR = Path(__file__).resolve().parent
     DATA_DIR = BASE_DIR / "data" / "demographics"
-    datasets = dataset_loader_ui("Birth rate & Death rate", DATA_DIR, row_filter_fn=filter_country_2023)
+    datasets = load_file(DATA_DIR)
+    datasets = filter_country_2023(datasets.copy())
+    
 
     st.divider()
     st.header("2) Graph Area (add your indicator charts here)")
