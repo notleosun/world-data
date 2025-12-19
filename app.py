@@ -29,11 +29,20 @@ SUPPORTED_EXTS = {".csv", ".xlsx", ".xls"}
 def load_file(path: str) -> pd.DataFrame:
     p = Path(path)
     suf = p.suffix.lower()
+
     if suf == ".csv":
         return pd.read_csv(p)
-    if suf in (".xlsx", ".xls"):
-        return pd.read_excel(p)
-    raise ValueError("Unsupported file type (CSV/XLSX only).")
+
+    if suf in (".xlsx", ".xlsm"):
+        # Explicit engine avoids inference issues
+        return pd.read_excel(p, engine="openpyxl")
+
+    if suf == ".xls":
+        # .xls requires xlrd (not openpyxl)
+        # pip install xlrd
+        return pd.read_excel(p, engine="xlrd")
+
+    raise ValueError(f"Unsupported file type: {suf} (CSV/XLSX/XLSM/XLS only)")
 
 
 @st.cache_data(show_spinner=False)
