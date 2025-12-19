@@ -247,8 +247,8 @@ def render_birth_death():
         df = datasets[ds_lbl]
         prof = df_profile(df)
         if prof["numeric"]:
-            x = st.selectbox("X (e.g., year/date)", list(df.columns), key="bd_zoneA_x")
-            y = st.selectbox("Y (indicator)", prof["numeric"], key="bd_zoneA_y")
+            x = st.selectbox("X (e.g., year/date)", list('Region, subregion, country or area *'), key="bd_zoneA_x")
+            y = st.selectbox("Y (indicator)", list(df.columns), key="bd_zoneA_y")
             color = st.selectbox("Color (optional)", [None] + prof["categorical"], key="bd_zoneA_color")
             st.plotly_chart(px.line(df, x=x, y=y, color=color), use_container_width=True)
         else:
