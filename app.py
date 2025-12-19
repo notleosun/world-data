@@ -211,7 +211,7 @@ def exploratory_builder(page_name: str, datasets: Dict[str, pd.DataFrame]) -> No
 # =========================================================
 def render_birth_death():
     st.title("👶💀 Birth rate & Death rate")
-    datasets = dataset_loader_ui("Birth rate & Death rate", '~/data/demographics.xlsx')
+    datasets = dataset_loader_ui("Birth rate & Death rate", 'data/demographics.xlsx')
 
     st.divider()
     st.header("2) Graph Area (add your indicator charts here)")
