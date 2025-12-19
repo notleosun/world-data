@@ -19,11 +19,11 @@ st.set_page_config(
 DATA_ROOT = Path("data")
 
 CATEGORIES = {
-    "Birth & Death Rates": DATA_ROOT / "WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT",
+    "Birth & Death Rates": DATA_ROOT / "WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT.xlsx",
     "Wealth Distribution": DATA_ROOT / "wealth",
-    "Education & Indices": DATA_ROOT / "HDR25_Statistical_Annex_HDI_Table",
+    "Education & Indices": DATA_ROOT / "HDR25_Statistical_Annex_HDI_Table.xlsx",
     "Crime Rates": DATA_ROOT / "crime",
-    "Immigration & Migration": DATA_ROOT / "undesa_pd_2024_ims_stock_by_sex_destination_and_origin",
+    "Immigration & Migration": DATA_ROOT / "undesa_pd_2024_ims_stock_by_sex_destination_and_origin.xlsx",
     "Authoritarianism / Regime": DATA_ROOT / "regime",
 }
 
