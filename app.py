@@ -1,5 +1,5 @@
 # =========================================================
-# Global Stats Explorer — page routing like cov19st.py
+# Global Stats Explorer
 # (CSV / XLSX ONLY)
 # =========================================================
 
