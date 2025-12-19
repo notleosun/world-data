@@ -82,24 +82,6 @@ def df_profile(df: pd.DataFrame) -> dict:
         "categorical": df.select_dtypes(exclude=[np.number]).columns.tolist(),
     }
 
-
-def apply_base_filter(df: pd.DataFrame, year: Optional[str] = None, type_value: Optional[str] = None) -> pd.DataFrame:
-    """
-    Optional standard filters used across graph zones.
-    - year: e.g. "2023"
-    - type_value: e.g. "country"
-    """
-    out = df.copy()
-
-    if year is not None and "year" in out.columns:
-        out = out[out["year"].astype(str) == str(year)]
-
-    if type_value is not None and "type" in out.columns:
-        out = out[out["type"].astype(str).str.lower() == str(type_value).lower()]
-
-    return out
-
-
 # ============================================================
 # Folder-only Loader + Preview (CODE STYLE, not a function)
 # We'll "inline" this pattern inside each page renderer.
@@ -219,22 +201,14 @@ def render_page(
             st.info("Load at least one dataset on the left to enable graphs.")
             return
 
-        # Common controls for your graphs
-        with st.expander("Common filters for graphs (optional)", expanded=False):
-            g_year = st.text_input("Filter year =", value=default_year, key=ss_key(page_name, "g_year"))
-            g_type = st.text_input("Filter type =", value=default_type, key=ss_key(page_name, "g_type"))
-            use_common_filters = st.checkbox("Apply these filters to Graph Zones", value=True, key=ss_key(page_name, "g_apply"))
-
         # Pick active dataset for zones (you can change per-zone too)
         active_ds = st.selectbox(
             "Active dataset (used by Graph Zones unless overridden)",
             options=list(datasets_map.keys()),
             key=ss_key(page_name, "active_ds"),
         )
-        df_base = datasets_map[active_ds]
-        df_work = apply_base_filter(df_base, g_year, g_type) if use_common_filters else df_base.copy()
-
-        st.caption(f"Active dataset rows after common filters: {len(df_work):,}")
+        df_work = datasets_map[active_ds].copy()
+        st.caption(f"Active dataset rows: {len(df_work):,}")
 
         # =========================================================
         # GRAPH ZONE A (YOU ADD GRAPHS HERE)
