@@ -19,16 +19,6 @@ from streamlit_option_menu import option_menu
 # ----------------------------
 st.set_page_config(layout="wide", page_title="Global Stats Explorer")
 
-DATA_ROOT = Path("data")
-CATEGORIES: Dict[str, Path] = {
-    "Birth rate & Death rate": DATA_ROOT / "demographics",
-    "Wealth distribution": DATA_ROOT / "wealth",
-    "Education & indices": DATA_ROOT / "education",
-    "Crime rates": DATA_ROOT / "crime",
-    "Immigration / migration": DATA_ROOT / "migration",
-    "Authoritarianism / regime": DATA_ROOT / "regime",
-}
-
 SUPPORTED_EXTS = {".csv", ".xlsx", ".xls"}
 
 
@@ -220,7 +210,7 @@ def exploratory_builder(page_name: str, datasets: Dict[str, pd.DataFrame]) -> No
 # =========================================================
 def render_birth_death():
     st.title("👶💀 Birth rate & Death rate")
-    datasets = dataset_loader_ui("Birth rate & Death rate", CATEGORIES["Birth rate & Death rate"])
+    datasets = dataset_loader_ui("Birth rate & Death rate", 'data/demographics.xlsx')
 
     st.divider()
     st.header("2) Graph Area (add your indicator charts here)")
@@ -290,7 +280,7 @@ def render_wealth():
 
 def render_education():
     st.title("🎓 Education levels & indices")
-    datasets = dataset_loader_ui("Education & indices", CATEGORIES["Education & indices"])
+    datasets = dataset_loader_ui("Education & indices", 'data/education_hdi.xlsx')
 
     st.divider()
     st.header("2) Graph Area (add your indicator charts here)")
@@ -336,7 +326,7 @@ def render_crime():
 
 def render_migration():
     st.title("🧳 Immigration / migration")
-    datasets = dataset_loader_ui("Immigration / migration", CATEGORIES["Immigration / migration"])
+    datasets = dataset_loader_ui("Immigration / migration", 'data/immigration_2024.xlsx')
 
     st.divider()
     st.header("2) Graph Area (add your indicator charts here)")
