@@ -128,13 +128,13 @@ def render_page(*, page_name: str, data_folder: Path, description: str) -> None:
 
                     if datasets_map:
                         preview_lbl = st.selectbox(
-                            "Preview dataset",
+                            "Dataset(s)",
                             options=list(datasets_map.keys()),
                             key=ss_key(page_name, "preview_lbl"),
                         )
                         df_prev = datasets_map[preview_lbl]
                         st.caption(f"Rows: {len(df_prev):,} | Columns: {df_prev.shape[1]:,}")
-                        st.dataframe(df_prev.head(50), width="stretch")
+                        st.dataframe(df_prev, width="stretch")
 
     # ----------------------------
     # RIGHT: Graph Zone C ONLY
