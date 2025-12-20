@@ -151,7 +151,7 @@ def render_page(*, page_name: str, data_folder: Path, description: str) -> None:
     with right:
         datasets_map = get_datasets_map(page_name)
 
-        st.subheader("2) Graph Zone C — Exploratory Builder")
+        st.subheader("Exploratory Builder")
 
         if not datasets_map:
             st.info("Load a dataset on the left to build charts.")
