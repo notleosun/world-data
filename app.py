@@ -161,6 +161,19 @@ def render_page(*, page_name: str, data_folder: Path, description: str) -> None:
             st.warning("No numeric columns available for charts.")
             return
 
+        for col in df.columns:
+            
+        if df[col].dtype == "object":
+            # Try numeric conversion
+            coerced = pd.to_numeric(df[col], errors="coerce")
+    
+            # Convert if most values are numeric (e.g. >= 90%)
+            non_null_ratio = coerced.notna().mean()
+            if non_null_ratio >= 0.9:
+                df[col] = coerced
+
+        prof = df_profile(df)
+        
         # Optional categorical filters
         with st.expander("Filters (optional)", expanded=False):
             for col in prof["categorical"][:10]:
