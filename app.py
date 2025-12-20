@@ -140,7 +140,7 @@ def render_page(*, page_name: str, data_folder: Path, description: str) -> None:
     st.subheader("Exploratory Builder")
 
     if not datasets_map:
-        st.info("Load a dataset on the left to build charts.")
+        st.info("Load a dataset to build charts.")
         return
 
     active_ds = st.selectbox(
