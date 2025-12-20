@@ -248,7 +248,7 @@ def render_regime():
 
 
 # ============================================================
-# Sidebar navigation (cov19-style)
+# Sidebar navigation
 # ============================================================
 with st.sidebar:
     selected = option_menu(
