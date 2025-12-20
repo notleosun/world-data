@@ -25,7 +25,7 @@ CATEGORIES = {
     "Wealth distribution / inequality": DATA_ROOT / "wealth",
     "Education levels & indices": DATA_ROOT / "education",
     "Crime rates": DATA_ROOT / "crime",
-    "Immigration": DATA_ROOT / "migration",
+    "Immigration": DATA_ROOT / "immigration",
     "Authoritarianism indices": DATA_ROOT / "regime",
 }
 
