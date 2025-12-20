@@ -25,8 +25,8 @@ CATEGORIES = {
     "Wealth distribution / inequality": DATA_ROOT / "wealth",
     "Education levels & indices": DATA_ROOT / "education",
     "Crime rates": DATA_ROOT / "crime",
-    "Immigration / migration": DATA_ROOT / "migration",
-    "Authoritarianism / regime indices": DATA_ROOT / "regime",
+    "Immigration migration": DATA_ROOT / "migration",
+    "Authoritarianism indices": DATA_ROOT / "regime",
 }
 
 SUPPORTED_EXTS = {".csv", ".xlsx", ".xlsm", ".xls"}  # remove .xls if you want
@@ -246,15 +246,15 @@ def render_crime():
 def render_migration():
     render_page(
         page_name="Immigration / migration",
-        data_folder=CATEGORIES["Immigration / migration"],
+        data_folder=CATEGORIES["Immigration"],
         description="Migration indicators (pre-filtered).",
     )
 
 
 def render_regime():
     render_page(
-        page_name="Authoritarianism / regime indices",
-        data_folder=CATEGORIES["Authoritarianism / regime indices"],
+        page_name="Authoritarianism indices",
+        data_folder=CATEGORIES["Authoritarianism indices"],
         description="Political regime indicators (pre-filtered).",
     )
 
@@ -281,7 +281,7 @@ elif selected == "Education levels & indices":
     render_education()
 elif selected == "Crime rates":
     render_crime()
-elif selected == "Immigration / migration":
+elif selected == "Immigration":
     render_migration()
-elif selected == "Authoritarianism / regime indices":
+elif selected == "Authoritarianism indices":
     render_regime()
