@@ -25,7 +25,7 @@ CATEGORIES = {
     "Wealth distribution / inequality": DATA_ROOT / "wealth",
     "Education levels & indices": DATA_ROOT / "education",
     "Crime rates": DATA_ROOT / "crime",
-    "Immigration migration": DATA_ROOT / "migration",
+    "Immigration": DATA_ROOT / "migration",
     "Authoritarianism indices": DATA_ROOT / "regime",
 }
 
@@ -245,7 +245,7 @@ def render_crime():
 
 def render_migration():
     render_page(
-        page_name="Immigration / migration",
+        page_name="Immigration",
         data_folder=CATEGORIES["Immigration"],
         description="Migration indicators (pre-filtered).",
     )
