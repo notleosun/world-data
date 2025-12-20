@@ -84,7 +84,7 @@ def render_page(*, page_name: str, data_folder: Path, description: str) -> None:
     left, right = st.columns([1.1, 1.9], gap="large")
 
     # ----------------------------
-    # LEFT: Loader + Preview
+    #Loader + Preview
     # ----------------------------
     st.subheader("Load & Preview")
     st.caption(f"Folder: `{data_folder}`")
@@ -201,6 +201,20 @@ def render_page(*, page_name: str, data_folder: Path, description: str) -> None:
         fig = px.box(df, x=x, y=y, color=color)
 
     st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Notes")
+    
+    NOTES_DIR = BASE_DIR / 'notes'
+    notes_path = NOTES_DIR / f"{page_name}.md"
+    
+    if notes_path.exists():
+        try:
+            notes_md = notes_path.read_text(encoding="utf-8")
+            st.markdown(notes_md)
+        except Exception as e:
+            st.error(f"Failed to read notes file: {e}")
+    else:
+        st.caption(f"No notes file found at `{notes_path}`")
 
 
 # ============================================================
