@@ -96,7 +96,7 @@ def render_page(*, page_name: str, data_folder: Path, description: str) -> None:
     # LEFT: Loader + Preview
     # ----------------------------
     with left:
-        st.subheader("1) Load & Preview (folder-only)")
+        st.subheader("Load & Preview")
         st.caption(f"Folder: `{data_folder}`")
 
         datasets_map = get_datasets_map(page_name)
