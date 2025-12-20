@@ -152,6 +152,10 @@ def render_page(*, page_name: str, data_folder: Path, description: str) -> None:
     df = datasets_map[active_ds].copy()
     prof = df_profile(df)
 
+    for c in ["Political Rights", "Civil Liberties"]:
+    if c in df.columns:
+        df[c] = pd.to_numeric(df[c].replace("-", np.nan), errors="coerce")
+
     if not prof["numeric"]:
         st.warning("No numeric columns available for charts.")
         return
