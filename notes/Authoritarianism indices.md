@@ -15,7 +15,8 @@ The following worksheets list all country ratings and statuses since the annual 
 
 PR and CL are measured on a **1–7 scale**, where:
 - **1** = highest degree of freedom  
-- **7** = lowest degree of freedom  
+- **7** = lowest degree of freedom
+- **0** indicates no data
 
 Freedom Status categories:
 - **F** = Free  
