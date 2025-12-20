@@ -1,12 +1,3 @@
-# app.py
-# ------------------------------------------------------------
-# Global Stats Explorer (cov19-style routing)
-# - Sidebar option_menu navigation
-# - Folder-only dataset loader + preview (NO uploads)
-# - NO year/type filtering (datasets assumed pre-filtered)
-# - ONLY Graph Zone C (Exploratory chart builder)
-# ------------------------------------------------------------
-
 from __future__ import annotations
 
 from pathlib import Path
