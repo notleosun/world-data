@@ -4,4 +4,4 @@ Education data - https://hdr.undp.org/data-center/human-development-index#/indic
 https://databrowser.uis.unesco.org/
 Immigration data - https://www.un.org/development/desa/pd/content/international-migrant-stock
 Crime data - https://data.unodc.org/
-Democracy data - https://v-dem.net/data/the-v-dem-dataset/
+Democracy data - https://freedomhouse.org/report/freedom-world
